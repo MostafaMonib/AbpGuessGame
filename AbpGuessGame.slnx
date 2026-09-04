@@ -1,0 +1,25 @@
+<Solution>
+    <Folder Name="/Solution Items/">
+        <File Path="DOCUMENTATION.md" />
+        <File Path="README.md" />
+    </Folder>
+    <Folder Name="/src/">
+        <Project Path="src/AbpGuessGame.Application.Contracts/AbpGuessGame.Application.Contracts.csproj" />
+        <Project Path="src/AbpGuessGame.Application/AbpGuessGame.Application.csproj" />
+        <Project Path="src/AbpGuessGame.DbMigrator/AbpGuessGame.DbMigrator.csproj" />
+        <Project Path="src/AbpGuessGame.Domain.Shared/AbpGuessGame.Domain.Shared.csproj" />
+        <Project Path="src/AbpGuessGame.Domain/AbpGuessGame.Domain.csproj" />
+        <Project Path="src/AbpGuessGame.EntityFrameworkCore/AbpGuessGame.EntityFrameworkCore.csproj" />
+        <Project Path="src/AbpGuessGame.HttpApi.Client/AbpGuessGame.HttpApi.Client.csproj" />
+        <Project Path="src/AbpGuessGame.HttpApi/AbpGuessGame.HttpApi.csproj" />
+        <Project Path="src/AbpGuessGame.Web/AbpGuessGame.Web.csproj" />
+    </Folder>
+    <Folder Name="/test/">
+        <Project Path="test/AbpGuessGame.Application.Tests/AbpGuessGame.Application.Tests.csproj" />
+        <Project Path="test/AbpGuessGame.Domain.Tests/AbpGuessGame.Domain.Tests.csproj" />
+        <Project Path="test/AbpGuessGame.EntityFrameworkCore.Tests/AbpGuessGame.EntityFrameworkCore.Tests.csproj" />
+        <Project Path="test/AbpGuessGame.HttpApi.Client.ConsoleTestApp/AbpGuessGame.HttpApi.Client.ConsoleTestApp.csproj" />
+        <Project Path="test/AbpGuessGame.TestBase/AbpGuessGame.TestBase.csproj" />
+        <Project Path="test/AbpGuessGame.Web.Tests/AbpGuessGame.Web.Tests.csproj" />
+    </Folder>
+</Solution>

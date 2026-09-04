@@ -1,0 +1,118 @@
+{
+  "template": "app",
+  "imports": {
+    "Volo.Abp.LeptonXLiteTheme": {
+      "version": "5.6.0",
+      "isInstalled": true,
+      "creationTime": "09/04/2026 20:32:47 +00:00"
+    },
+    "Volo.Abp.Account": {
+      "version": "10.6.0",
+      "isInstalled": true,
+      "creationTime": "09/04/2026 20:32:47 +00:00"
+    },
+    "Volo.Abp.OpenIddict": {
+      "version": "10.6.0",
+      "isInstalled": true,
+      "creationTime": "09/04/2026 20:32:47 +00:00"
+    },
+    "Volo.Abp.Identity": {
+      "version": "10.6.0",
+      "isInstalled": true,
+      "creationTime": "09/04/2026 20:32:47 +00:00"
+    },
+    "Volo.Abp.TenantManagement": {
+      "version": "10.6.0",
+      "isInstalled": true,
+      "creationTime": "09/04/2026 20:32:47 +00:00"
+    },
+    "Volo.Abp.SettingManagement": {
+      "version": "10.6.0",
+      "isInstalled": true,
+      "creationTime": "09/04/2026 20:32:47 +00:00"
+    },
+    "Volo.Abp.PermissionManagement": {
+      "version": "10.6.0",
+      "isInstalled": true,
+      "creationTime": "09/04/2026 20:32:47 +00:00"
+    },
+    "Volo.Abp.FeatureManagement": {
+      "version": "10.6.0",
+      "isInstalled": true,
+      "creationTime": "09/04/2026 20:32:47 +00:00"
+    },
+    "Volo.Abp.BlobStoring.Database": {
+      "version": "10.6.0",
+      "isInstalled": true,
+      "creationTime": "09/04/2026 20:32:47 +00:00"
+    }
+  },
+  "folders": {
+    "items": {
+      "src": {},
+      "test": {}
+    }
+  },
+  "packages": {
+    "AbpGuessGame.Application": {
+      "path": "src/AbpGuessGame.Application/AbpGuessGame.Application.abppkg",
+      "folder": "src"
+    },
+    "AbpGuessGame.Application.Tests": {
+      "path": "test/AbpGuessGame.Application.Tests/AbpGuessGame.Application.Tests.abppkg",
+      "folder": "test"
+    },
+    "AbpGuessGame.Domain.Shared": {
+      "path": "src/AbpGuessGame.Domain.Shared/AbpGuessGame.Domain.Shared.abppkg",
+      "folder": "src"
+    },
+    "AbpGuessGame.Application.Contracts": {
+      "path": "src/AbpGuessGame.Application.Contracts/AbpGuessGame.Application.Contracts.abppkg",
+      "folder": "src"
+    },
+    "AbpGuessGame.HttpApi": {
+      "path": "src/AbpGuessGame.HttpApi/AbpGuessGame.HttpApi.abppkg",
+      "folder": "src"
+    },
+    "AbpGuessGame.HttpApi.Client": {
+      "path": "src/AbpGuessGame.HttpApi.Client/AbpGuessGame.HttpApi.Client.abppkg",
+      "folder": "src"
+    },
+    "AbpGuessGame.Web": {
+      "path": "src/AbpGuessGame.Web/AbpGuessGame.Web.abppkg",
+      "folder": "src"
+    },
+    "AbpGuessGame.Web.Tests": {
+      "path": "test/AbpGuessGame.Web.Tests/AbpGuessGame.Web.Tests.abppkg",
+      "folder": "test"
+    },
+    "AbpGuessGame.EntityFrameworkCore.Tests": {
+      "path": "test/AbpGuessGame.EntityFrameworkCore.Tests/AbpGuessGame.EntityFrameworkCore.Tests.abppkg",
+      "folder": "test"
+    },
+    "AbpGuessGame.EntityFrameworkCore": {
+      "path": "src/AbpGuessGame.EntityFrameworkCore/AbpGuessGame.EntityFrameworkCore.abppkg",
+      "folder": "src"
+    },
+    "AbpGuessGame.TestBase": {
+      "path": "test/AbpGuessGame.TestBase/AbpGuessGame.TestBase.abppkg",
+      "folder": "test"
+    },
+    "AbpGuessGame.Domain.Tests": {
+      "path": "test/AbpGuessGame.Domain.Tests/AbpGuessGame.Domain.Tests.abppkg",
+      "folder": "test"
+    },
+    "AbpGuessGame.HttpApi.Client.ConsoleTestApp": {
+      "path": "test/AbpGuessGame.HttpApi.Client.ConsoleTestApp/AbpGuessGame.HttpApi.Client.ConsoleTestApp.abppkg",
+      "folder": "test"
+    },
+    "AbpGuessGame.DbMigrator": {
+      "path": "src/AbpGuessGame.DbMigrator/AbpGuessGame.DbMigrator.abppkg",
+      "folder": "src"
+    },
+    "AbpGuessGame.Domain": {
+      "path": "src/AbpGuessGame.Domain/AbpGuessGame.Domain.abppkg",
+      "folder": "src"
+    }
+  }
+}

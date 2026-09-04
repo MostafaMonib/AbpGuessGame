@@ -1,0 +1,72 @@
+2026-09-04 23:40:36.363 +03:00 [INF] Started database migrations...
+2026-09-04 23:40:36.369 +03:00 [INF] Migrating schema for host database...
+2026-09-04 23:40:37.683 +03:00 [ERR] Failed executing DbCommand (22ms) [Parameters=[], CommandType='"Text"', CommandTimeout='30']
+SELECT "MigrationId", "ProductVersion"
+FROM "__EFMigrationsHistory"
+ORDER BY "MigrationId";
+2026-09-04 23:40:37.845 +03:00 [INF] Executing host database seed...
+2026-09-04 23:40:38.456 +03:00 [ERR] Failed executing DbCommand (99ms) [Parameters=[@names='?' (DbType = Object), @providerName='?', @providerKey='?'], CommandType='"Text"', CommandTimeout='30']
+SELECT a."Id", a."Name", a."ProviderKey", a."ProviderName", a."TenantId"
+FROM "AbpPermissionGrants" AS a
+WHERE a."TenantId" IS NULL AND a."Name" = ANY (@names) AND a."ProviderName" = @providerName AND a."ProviderKey" = @providerKey
+2026-09-04 23:40:38.478 +03:00 [ERR] An exception occurred while iterating over the results of a query for context type 'Volo.Abp.PermissionManagement.EntityFrameworkCore.PermissionManagementDbContext'.
+Npgsql.PostgresException (0x80004005): 42P01: relation "AbpPermissionGrants" does not exist
+
+POSITION: 80
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SplitQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SplitQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+  Exception data:
+    Severity: ERROR
+    SqlState: 42P01
+    MessageText: relation "AbpPermissionGrants" does not exist
+    Position: 80
+    File: parse_relation.c
+    Line: 1501
+    Routine: parserOpenTable
+Npgsql.PostgresException (0x80004005): 42P01: relation "AbpPermissionGrants" does not exist
+
+POSITION: 80
+   at Npgsql.Internal.NpgsqlConnector.ReadMessageLong(Boolean async, DataRowLoadingMode dataRowLoadingMode, Boolean readingNotifications, Boolean isReadingPrependedMessage)
+   at System.Runtime.CompilerServices.PoolingAsyncValueTaskMethodBuilder`1.StateMachineBox`1.System.Threading.Tasks.Sources.IValueTaskSource<TResult>.GetResult(Int16 token)
+   at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlDataReader.NextResult(Boolean async, Boolean isConsuming, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteReader(Boolean async, CommandBehavior behavior, CancellationToken cancellationToken)
+   at Npgsql.NpgsqlCommand.ExecuteDbDataReaderAsync(CommandBehavior behavior, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Storage.RelationalCommand.ExecuteReaderAsync(RelationalCommandParameterObject parameterObject, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SplitQueryingEnumerable`1.AsyncEnumerator.InitializeReaderAsync(AsyncEnumerator enumerator, CancellationToken cancellationToken)
+   at Npgsql.EntityFrameworkCore.PostgreSQL.Storage.Internal.NpgsqlExecutionStrategy.ExecuteAsync[TState,TResult](TState state, Func`4 operation, Func`4 verifySucceeded, CancellationToken cancellationToken)
+   at Microsoft.EntityFrameworkCore.Query.Internal.SplitQueryingEnumerable`1.AsyncEnumerator.MoveNextAsync()
+  Exception data:
+    Severity: ERROR
+    SqlState: 42P01
+    MessageText: relation "AbpPermissionGrants" does not exist
+    Position: 80
+    File: parse_relation.c
+    Line: 1501
+    Routine: parserOpenTable
+2026-09-04 23:48:57.894 +03:00 [INF] Started database migrations...
+2026-09-04 23:48:57.898 +03:00 [INF] Migrating schema for host database...
+2026-09-04 23:48:59.241 +03:00 [INF] Executing host database seed...
+2026-09-04 23:49:00.871 +03:00 [INF] Successfully completed host database migrations.
+2026-09-04 23:49:01.111 +03:00 [INF] Successfully completed all database migrations.
+2026-09-04 23:49:01.111 +03:00 [INF] You can safely end this process...
+2026-09-05 01:13:50.369 +03:00 [INF] Started database migrations...
+2026-09-05 01:13:50.373 +03:00 [INF] Migrating schema for host database...
+2026-09-05 01:13:51.418 +03:00 [ERR] An error occurred using the connection to database '' on server ''.
+2026-09-05 01:17:04.622 +03:00 [INF] Started database migrations...
+2026-09-05 01:17:04.628 +03:00 [INF] Migrating schema for host database...
+2026-09-05 01:17:05.661 +03:00 [ERR] An error occurred using the connection to database '' on server ''.
+2026-09-05 01:54:04.662 +03:00 [INF] Started database migrations...
+2026-09-05 01:54:04.666 +03:00 [INF] Migrating schema for host database...
