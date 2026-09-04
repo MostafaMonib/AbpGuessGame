@@ -376,6 +376,8 @@ ABP `IdentityUser` extended with:
 
 **Update rule:** on win, if `BestGuessCount` is null **or** current game `GuessCount < BestGuessCount`, set `BestGuessCount = GuessCount`. This is the **only** persistent “high score” field required by the brief.
 
+**Invariant:** `Status == Won` implies `GuessCount >= 1`. A win can never occur with `GuessCount == 0`, since the winning guess itself is the increment — there is no way to "start already won."
+
 ### 7.2 Game aggregate
 
 | Field | Type | Notes |
@@ -418,22 +420,30 @@ erDiagram
   GUESS {
     guid Id
     guid GameId
+    int GuessNumber
     int Value
     string Hint
+    string IdempotencyKey_nullable
   }
 ```
 
-### 7.3 Guess (child entity / collection)
+### 7.3 Guess (child entity / collection) — the durable guess log
 
 | Field | Type | Notes |
 |-------|------|--------|
 | `Id` | Guid | |
 | `GameId` | Guid | |
+| `GuessNumber` | int | 1-based ordinal within the game; set to the pre-increment `GuessCount + 1` at insert time. Makes replay order explicit instead of relying on `CreationTime` sort |
 | `Value` | int | 1–43 |
 | `Hint` | enum | `Higher`, `Lower`, `Correct` |
+| `IdempotencyKey` | string? | See §7.4 idempotency rule; nullable, unique per `GameId` when set |
 | `CreationTime` | DateTime | |
 
-Used for history and for showing the bot path vs the player. Not the “one field” in the brief.
+**This table is the business log of every guess a user makes — not just the `GuessCount` integer.** It is mandatory, not optional history:
+
+> Every accepted guess **MUST** result in exactly one persisted `Guess` row, written in the **same unit of work** as the `Game` update, before `SaveChanges`. Serilog (§12) is the *flow/ops* log; this table is the *business* log — the app needs both, and neither substitutes for the other.
+
+`Guess` rows are **immutable and never deleted**, including for abandoned games (see §7.4) — they are the audit trail for "what did this user actually guess, in order," and are also what powers the player-vs-bot history in the bonus feature (§10) via the history endpoint (§8.2).
 
 ### 7.4 Domain behavior
 
@@ -447,11 +457,13 @@ Used for history and for showing the bot path vs the player. Not the “one fiel
 **Record guess**
 
 - Must be owner, status `InProgress`, value in 1–43.
-- Increment `GuessCount`.
+- **Idempotency:** if the request carries an `Idempotency-Key` (or reuses `X-Correlation-Id`, since that's already one-per-action per §12.2) matching an existing `Guess.IdempotencyKey` for this game, skip domain logic entirely and return the previously computed `GuessResultDto`. This protects against double-submit from a retried network request or a double-tap on mobile.
+- **Duplicate value in this game:** if `value` matches any prior `Guess.Value` for the current game, reject **without** incrementing `GuessCount` and **without** inserting a new `Guess` row. Return the original hint again with `alreadyGuessed: true` on the DTO, and log `Game.DuplicateGuessIgnored` at Warning level (fields: `value`, current `guessNumber`). This exists so a careless UI (or replayed requests) can't inflate `GuessCount`/`BestGuessCount` by re-sending an already-tried number.
+- Otherwise: increment `GuessCount`, insert the `Guess` row (`GuessNumber = GuessCount`), log `Game.GuessPersisted` (fields: `gameId`, `guessNumber`, `value`, `hint`) immediately after the row is added and before `SaveChanges`.
 - Compare to secret → hint.
 - If equal: status `Won`; apply best-score rule on the user.
 
-**Abandon** (optional): set `Abandoned` if we ever allow “new game” while one is open. Prefer resume for v1.
+**Abandon** (optional): set `Abandoned` if we ever allow “new game” while one is open. Prefer resume for v1. `Guess` rows belonging to an abandoned game are **kept** (never deleted) and simply excluded from "current game" queries once `Status != InProgress`; `BestGuessCount` is untouched.
 
 **Game status**
 
@@ -473,7 +485,11 @@ flowchart TD
   Auth -->|No| FailAuth[Reject 403 or 404]
   Auth -->|Yes| Range{Value 1 to 43?}
   Range -->|No| FailRange[Reject 400 OutOfRange]
-  Range -->|Yes| Inc[Increment GuessCount]
+  Range -->|Yes| Idem{Idempotency-Key already seen?}
+  Idem -->|Yes| Replay[Return previously computed result, no side effects]
+  Idem -->|No| Dup{Value already guessed this game?}
+  Dup -->|Yes| Ignore["Return prior hint alreadyGuessed=true, no increment, no insert, log Warning"]
+  Dup -->|No| Inc["Increment GuessCount, insert Guess row (GuessNumber), log GuessPersisted"]
   Inc --> Cmp{value vs SecretNumber}
   Cmp -->|less| Low[Hint Higher]
   Cmp -->|greater| High[Hint Lower]
@@ -545,6 +561,15 @@ All game endpoints require JWT. ABP conventional routes may differ slightly; nam
 | Logout | Client drops token; optional revocation if we enable it |
 | Me | Profile DTO **includes** `bestGuessCount` |
 
+**Failure paths (previously unstated, now explicit):**
+
+| Situation | Status | Notes |
+|---|---|---|
+| Username/email already taken | 400 | ABP Identity returns this natively — surface as a field-level error, not a generic message |
+| Password fails policy | 400 | Use ABP Identity default policy (min length, at least one digit) unless the brief demands otherwise — the actual policy in force must be written down in `docs/steps/02-identity-auth.md` |
+| Login with wrong password | 401, generic message | Never reveal whether the username exists (avoid username enumeration) |
+| Repeated failed logins | Lockout (also §13.1) | e.g. 5 attempts → 5-minute lockout — pick concrete numbers, don't leave "lockout" unquantified |
+
 **Login then profile (sequence)**
 
 ```mermaid
@@ -573,7 +598,10 @@ sequenceDiagram
 |--------|-------------------|------|--------|
 | POST | `/api/app/game` | empty | Current or new game DTO (no secret) |
 | GET | `/api/app/game/current` | | In-progress game or 204/404 |
-| POST | `/api/app/game/{id}/guess` | `{ "value": 20 }` | Guess result DTO |
+| POST | `/api/app/game/{id}/guess` | `{ "value": 20 }`, header `Idempotency-Key` (or reuse `X-Correlation-Id`) | Guess result DTO |
+| GET | `/api/app/game/{id}/guesses` | | Ordered list of `GuessHistoryItemDto` for that game, owner only — the persisted guess log from §7.3, for rendering history and the player-vs-bot comparison (§10) |
+
+**`GuessHistoryItemDto`:** `guessNumber, value, hint, creationTime` — never includes `secretNumber` while `Status == InProgress` (same leak rule as §7.6).
 
 **Guess through layers (sequence)**
 
@@ -589,14 +617,14 @@ sequenceDiagram
 
   User->>SPA: Submit guess 20
   SPA->>SPA: correlationId plus client log
-  SPA->>Api: POST guess JWT X-Correlation-Id
+  SPA->>Api: POST guess JWT X-Correlation-Id Idempotency-Key
   Note over Api: Serilog HttpApi request begin
   Api->>App: GuessAsync
   Note over App: Serilog Application started
   App->>Dom: RecordGuess 20
-  Note over Dom: Serilog Domain hint Higher
+  Note over Dom: Serilog Domain GuessPersisted, hint Higher
   Dom-->>App: hint plus counts
-  App->>Inf: SaveChanges Game then user if win
+  App->>Inf: SaveChanges Guess row, Game, then user if win
   Inf->>DB: Parameterized SQL
   App-->>Api: GuessResultDto
   Api-->>SPA: 200 plus X-Correlation-Id
@@ -619,6 +647,7 @@ sequenceDiagram
 - `value`, `hint` (`Higher` \| `Lower` \| `Correct`)
 - `guessCount`
 - `won` (bool)
+- `alreadyGuessed` (bool) — true when the same value was already tried this game; count and history are unchanged
 - if won: `secretNumber`, `botGuessCount`, `beatTheBot`, `bestGuessCount`, optional `botPath: number[]`
 
 ### 8.4 HTTP semantics
@@ -630,6 +659,7 @@ sequenceDiagram
 | Not owner | 403 |
 | Game missing / not in progress | 404 |
 | Concurrent update conflict | 409 |
+| Rate limit exceeded | 429 |
 | Success | 200 |
 
 ABP problem-details JSON for errors. Include `correlationId` in the payload or header so the UI can display it.
@@ -640,7 +670,7 @@ ABP problem-details JSON for errors. Include `correlationId` in the payload or h
 |----------|------------|
 | Users / credentials | Create (register), read (profile), update password if Identity supports it; no delete required |
 | Games | Create (start), read (current), update (via guess) |
-| Guesses | Create (each guess); read as part of game history if needed |
+| Guesses | Create (each guess, persisted — §7.3); read as history via `GET /game/{id}/guesses` |
 | Best score | Not a separate resource: **one column** updated on win |
 
 ---
@@ -668,7 +698,7 @@ flowchart LR
 
 On **every** user operation (login, register, start game, guess, load profile):
 
-1. Ensure a `correlationId` (UUID).
+1. Ensure a `correlationId` (UUID). Reused as the `Idempotency-Key` for guess submissions (§7.4) since it is already generated one-per-action.
 2. Log locally: `{ operation, correlationId, timestamp }`.
 3. Send header `X-Correlation-Id`.
 4. On response, log `{ operation, correlationId, status }`.
@@ -688,7 +718,7 @@ API allows only the React origin(s) from configuration (`App:CorsOrigins`).
 - Player plays as usual.
 - On win, UI compares `guessCount` vs `botGuessCount`.
 - If player ≤ bot: they “beat or matched optimal search” (luck on early hit is allowed).
-- Optional: display the bot’s guess sequence so an interviewer sees the algorithm.
+- Optional: display the bot’s guess sequence so an interviewer sees the algorithm, alongside the player's actual guess sequence pulled from `GET /game/{id}/guesses` (§8.2) — the persisted guess log doubles as the data source for this comparison.
 
 This is extra; the brief still works if the interviewer only checks CRUD + higher/lower + best score.
 
@@ -735,7 +765,7 @@ Follow **one operation** from the button click to the domain rule using a single
 
 ### 12.2 Correlation id
 
-1. React generates or reuses `X-Correlation-Id` (GUID) per **user action** (one guess = one id).
+1. React generates or reuses `X-Correlation-Id` (GUID) per **user action** (one guess = one id). This same value doubles as the `Idempotency-Key` for guess submissions (§7.4).
 2. API middleware:
    - If header present → use it (validate GUID format; if invalid, generate new).
    - If missing → generate.
@@ -839,10 +869,14 @@ Operations: `Register`, `Login`, `Logout`, `LoadProfile`, `StartGame`, `Guess`, 
 
 #### Domain (`Game`, domain services)
 
+Every guess a user makes is logged here — this is the layer where the decision and the write are recorded, alongside the persisted `Guess` row from §7.3:
+
 | Event | When |
 |-------|------|
 | `Game.Created` | New aggregate (log id, userId, **not** secret) |
-| `Game.GuessRecorded` | value, hint, guessCount |
+| `Game.GuessRecorded` | value, hint, guessCount — the decision |
+| `Game.GuessPersisted` | gameId, guessNumber, value, hint — confirms the `Guess` row write, immediately before `SaveChanges` |
+| `Game.DuplicateGuessIgnored` | Warning; value, guessNumber — a repeat guess was rejected without counting (§7.4) |
 | `Game.Won` | guessCount, botGuessCount |
 | `Game.RejectedGuess` | reason (out of range, not in progress) |
 | `BestGuessCount.Changed` | userId, new value |
@@ -866,6 +900,7 @@ Domain logs **decisions**, not HTTP.
 [HttpApi]       Request begin Operation=Game.Guess
 [Application]   GuessAsync started gameId=… value=20
 [Domain]        Game.GuessRecorded value=20 hint=Higher guessCount=3
+[Domain]        Game.GuessPersisted gameId=… guessNumber=3 value=20 hint=Higher
 [Application]   Guess recorded won=false
 [Application]   GuessAsync completed
 [HttpApi]       Request end 200 elapsedMs=12
@@ -884,6 +919,18 @@ If domain rejects value `0`:
 [Client]        HTTP 400 show correlation id
 ```
 
+If the same value is guessed twice:
+
+```text
+[Client]        operation=Guess started
+[HttpApi]       Request begin
+[Application]   GuessAsync started value=20
+[Domain]        Game.DuplicateGuessIgnored value=20 guessNumber=3
+[Application]   Guess recorded won=false alreadyGuessed=true
+[HttpApi]       Request end 200 elapsedMs=8
+[Client]        HTTP 200 alreadyGuessed=true
+```
+
 Same GUID in every line. That is the tracing model (**log-based tracing**). We do not require OpenTelemetry or AWS X-Ray. OTEL can be added later as a sink; it is **not** a dependency.
 
 ### 12.7 Operation catalog
@@ -895,7 +942,7 @@ Same GUID in every line. That is the tracing model (**log-based tracing**). We d
 | Logout | ✓ | optional | optional | — |
 | LoadProfile | ✓ | ✓ | ✓ | read best |
 | StartGame | ✓ | ✓ | ✓ | Game.Created or resume |
-| Guess | ✓ | ✓ | ✓ | GuessRecorded / Won |
+| Guess | ✓ | ✓ | ✓ | GuessRecorded / GuessPersisted / DuplicateGuessIgnored / Won |
 | Best score update | (via result) | ✓ | ✓ | BestGuessCount.Changed |
 
 ### 12.8 Log levels
@@ -904,7 +951,7 @@ Same GUID in every line. That is the tracing model (**log-based tracing**). We d
 |-------|-----|
 | Verbose/Debug | EF SQL in Development only |
 | Information | Happy-path operation steps |
-| Warning | Validation, retries, authz deny |
+| Warning | Validation, retries, authz deny, duplicate guesses |
 | Error | Unexpected exceptions |
 
 ### 12.9 PII and secrets policy
@@ -919,15 +966,17 @@ Same GUID in every line. That is the tracing model (**log-based tracing**). We d
 
 ### 12.10 ABP audit logging
 
-Enable audit for application service methods (who, when, URL, duration). Serilog is for **flow**; audit is for **accountability**. Both share correlation id if we copy it into extra properties.
+Enable audit for application service methods (who, when, URL, duration). Serilog is for **flow**; audit is for **accountability**; the persisted `Guess` table (§7.3) is for **business history**. All three can share the correlation id if we copy it into extra properties.
 
 ```mermaid
 flowchart TB
   Req[HTTP request]
   Serilog[Serilog flow logs]
   Audit[ABP audit who and when]
+  Guesses[(Persisted Guess rows)]
   Req --> Serilog
   Req --> Audit
+  Req --> Guesses
   Serilog --> Join[Same CorrelationId]
   Audit --> Join
 ```
@@ -963,15 +1012,23 @@ flowchart TB
 - Identity password hashing (not reversible storage)
 - JWT on all game APIs
 - HTTPS in production (platform)
-- Lockout after repeated failed logins (Identity options)
+- Lockout after repeated failed logins: **5 failed attempts → 5-minute lockout** (Identity options; a concrete number, not left open)
 - CORS allowlist
 
 ### 13.2 Request abuse (application stand-in for “DDoS protection”)
 
-We cannot stop a terabit flood. We **can**:
+We cannot stop a terabit flood. We **can**, with concrete numbers:
 
-- Rate limit login/token (per IP + per username)
-- Rate limit guesses (per user; humans do not need high RPS)
+| Endpoint | Limit | Scope |
+|---|---|---|
+| Token/login | 5 requests / minute | per IP + per username |
+| `POST /guess` | 20 requests / minute | per authenticated user |
+| `POST /game` (start) | 5 requests / minute | per authenticated user |
+
+Exceeding returns `429` with `Retry-After`; log at Warning with `ApplicationLayer=HttpApi`, `Operation`, `CorrelationId`.
+
+Also:
+
 - Require JWT so anonymous clients cannot create games
 - One in-progress game per user
 - Kestrel / request timeouts and max body size (guess JSON is tiny)
@@ -986,7 +1043,7 @@ Document for interviewers: volumetric DDoS = host/CDN; application still sheds l
 **Application rules:**
 
 1. One ABP unit of work per HTTP request
-2. Always update **Game first**, then user **BestGuessCount**
+2. Always update **Game and its Guess row first**, then user **BestGuessCount**
 3. Compute bot **before** `SaveChanges`
 4. No HTTP calls inside a transaction
 5. Optimistic concurrency on `Game`
@@ -998,7 +1055,7 @@ Document for interviewers: volumetric DDoS = host/CDN; application still sheds l
 flowchart LR
   subgraph Tx["One unit of work"]
     B[Compute bot in memory]
-    G[Update Game row]
+    G[Insert Guess row, update Game]
     U[Update BestGuessCount]
     S[SaveChanges]
     B --> G --> U --> S
@@ -1030,6 +1087,7 @@ flowchart TD
 - Secret only on server until win
 - Server validates range and ownership
 - Best score only updates on **win**, never on abandon
+- Duplicate and idempotent-replay guesses never move `GuessCount` or `BestGuessCount` (§7.4)
 
 ### 13.6 Headers and pipeline
 
@@ -1051,13 +1109,13 @@ No implementation step without a markdown file that states: goal, tasks, logging
 | File | Step |
 |------|------|
 | `docs/steps/01-bootstrap.md` | ABP solution, Postgres, gitignore |
-| `docs/steps/02-identity-auth.md` | Register/login/logout, JWT, CORS |
-| `docs/steps/03-game-domain.md` | Entities, invariants, bot |
-| `docs/steps/04-game-application-api.md` | App services, DTOs, REST |
+| `docs/steps/02-identity-auth.md` | Register/login/logout, JWT, CORS, **actual password policy in force** |
+| `docs/steps/03-game-domain.md` | Entities, invariants, bot, duplicate/idempotency rules |
+| `docs/steps/04-game-application-api.md` | App services, DTOs, REST, guess history endpoint |
 | `docs/steps/05-react-auth.md` | SPA login/register, correlation header |
 | `docs/steps/06-react-game.md` | Play UI, best score, bot result |
 | `docs/steps/07-serilog-correlation.md` | Serilog JSON, layers, e2e grep demo |
-| `docs/steps/08-security-hardening.md` | Rate limit, deadlock retry, validation |
+| `docs/steps/08-security-hardening.md` | Rate limit numbers, deadlock retry, validation |
 | `docs/steps/09-runbook.md` | Run locally; deploy notes Heroku vs Azure |
 | `docs/steps/10-unit-tests.md` | Domain/application/API/React tests; CI command |
 
@@ -1082,13 +1140,13 @@ Do not start until the plan is accepted.
 
 1. Keep this file as source of truth; add `docs/steps/*`
 2. Bootstrap ABP API + Docker PostgreSQL
-3. Identity: register, login, logout, hashed passwords
-4. Extend user with `BestGuessCount`; Game module domain + EF + migrations
-5. Application + HttpApi + Swagger
+3. Identity: register, login, logout, hashed passwords, lockout numbers, uniqueness/policy errors
+4. Extend user with `BestGuessCount`; Game module domain + EF + migrations, including `Guess.GuessNumber` and `Guess.IdempotencyKey`
+5. Application + HttpApi + Swagger, including guess history endpoint
 6. Serilog + correlation middleware (can be earlier; must exist before React e2e)
 7. React auth + profile best score
 8. React game + bot result
-9. Rate limits, deadlock retry, hardening
+9. Rate limits (concrete numbers), deadlock retry, hardening
 10. Tests: domain unit tests written **with** the domain (not after everything); application and API tests after services exist; React tests with UI
 11. Runbook: env vars for Heroku and Azure (no AWS requirement)
 
@@ -1170,6 +1228,9 @@ These are the core of the interview: they prove higher/lower, win, one best-scor
 | Guess after `Won` | Reject; no extra count |
 | Guess by wrong user | Reject (if ownership is enforced in domain; otherwise application test) |
 | Two guesses then win | `GuessCount` equals 3 |
+| Correct value on the very first guess | `GuessCount == 1`, `BestGuessCount` set to `1` — proves the `Won ⇒ GuessCount >= 1` invariant (§7.1) |
+| Guess a value already guessed earlier in the same game | Rejected; `GuessCount` unchanged; no new `Guess` row inserted; returns prior hint with `alreadyGuessed: true` |
+| Same `Idempotency-Key` submitted twice | Second call returns the identical `GuessResultDto` with no additional side effects (no new row, no count change) |
 
 **`BestGuessCount` on user** (domain service or user method)
 
@@ -1211,13 +1272,15 @@ Use ABP `ApplicationTestBase` where possible. Mock repositories or use fakes.
 | `GuessAsync` other user’s game | 403 |
 | `GuessAsync` valid | DTO hint matches domain; still no secret if not won |
 | `GuessAsync` winning guess | DTO includes secret, `botGuessCount`, `beatTheBot`, updated `bestGuessCount` |
+| `GuessAsync` with a repeated value | DTO has `alreadyGuessed: true`; `guessCount` unchanged from before the call |
+| `GuessHistoryAsync` | Returns rows ordered by `guessNumber`; omits `secretNumber` while `InProgress` |
 | Profile | `bestGuessCount` null before first win; set after win |
 
 Application tests **must not** put `SecretNumber` on in-progress DTOs (assert JSON shape / property null or missing).
 
 ### 16.5 Infrastructure and API tests
 
-**EF Core:** mapping `BestGuessCount`; unique “one in-progress per user” if we add a filtered unique index; migration applies on test DB.
+**EF Core:** mapping `BestGuessCount`; mapping `Guess.GuessNumber` and `Guess.IdempotencyKey` (unique per `GameId` when not null); unique “one in-progress per user” if we add a filtered unique index; migration applies on test DB.
 
 **HttpApi / integration:**
 
@@ -1227,7 +1290,10 @@ Application tests **must not** put `SecretNumber` on in-progress DTOs (assert JS
 | `POST guess` `{ "value": 0 }` | 400, no 500, body is problem details |
 | `POST guess` `{ "value": "1; DROP TABLE" }` | 400 (JSON type error), not a SQL error |
 | `POST guess` with `X-Correlation-Id` | Response echoes the same header |
-| Full happy path | Register (or seed user) → token → start → guess until win → GET profile shows best |
+| `POST guess` twice with same `Idempotency-Key` | Second response identical to the first; only one `Guess` row exists |
+| `GET game/{id}/guesses` | Returns persisted guesses in order, owner only, 403 for a different user |
+| Repeated `POST guess` beyond rate limit | 429 with `Retry-After` |
+| Full happy path | Register (or seed user) → token → start → guess until win → GET profile shows best → GET guesses shows full history |
 
 Prefer **Testcontainers PostgreSQL** if integration tests need a real engine; keep them tagged `Category=Integration` so developers can run **unit-only** (`dotnet test --filter Category!=Integration`) quickly.
 
@@ -1239,8 +1305,9 @@ Prefer **Testcontainers PostgreSQL** if integration tests need a real engine; ke
 | Home with `bestGuessCount: 4` | Shows 4 |
 | Play: API returns `Higher` | UI instructs guess higher |
 | Play: `Correct` | Navigates or shows result; displays secret only then |
+| Play: `alreadyGuessed: true` | UI shows "you already tried this number" instead of counting it again |
 | Result: `beatTheBot: true` | Celebration copy |
-| API client | Sets `X-Correlation-Id` on fetch (mock) |
+| API client | Sets `X-Correlation-Id` (and `Idempotency-Key`) on fetch (mock) |
 | Guess input | Disables submit when value empty or out of 1–43 (client UX; server still validates) |
 
 No real backend in these tests.
@@ -1251,10 +1318,11 @@ No real backend in these tests.
 |---------|-----------|--------|
 | SQL injection | API | Malformed JSON / huge string → 400; EF never concatenates (code review + no raw SQL tests) |
 | Range | Domain + API | 0 and 44 rejected |
-| Abuse | Application or API | Repeated guesses throttled if rate limit is implemented (can be skipped until step 8) |
+| Abuse | Application or API | Repeated guesses throttled at the documented limits (§13.2) |
 | Deadlock retry | Application | Fake `DbUpdateException` / Postgres `40P01` → retry then success (optional; mock UoW) |
 | Secret leak | Application + API | In-progress response JSON does not contain the secret |
 | Correlation | API | Echo header; optional log sink capturing `CorrelationId` |
+| Guess logging | Domain + API | Every accepted guess produces exactly one `Guess` row; duplicate/idempotent replays produce zero additional rows |
 
 ### 16.8 Commands (when code exists)
 
@@ -1272,13 +1340,15 @@ CI (GitHub Actions / Azure Pipelines / Heroku CI — any): restore, `dotnet test
 2. Start game → guess wrong → higher or lower.
 3. Win → see secret and bot comparison.
 4. Logout → login → **same** best guess count.
-5. (Optional) grep one correlation id in API console logs across HttpApi, Application, Domain.
+5. Open `GET /game/{id}/guesses` (or the UI history view) → confirm every guess made is present, in order.
+6. (Optional) grep one correlation id in API console logs across HttpApi, Application, Domain.
 
 ### 16.10 Definition of done for “unit testing”
 
 - Every domain rule in section 7 has at least one unit test.
 - Bot is covered for boundaries `1` and `43` plus one mid value.
 - In-progress DTO leak of secret is tested and fails the build if leaked.
+- Duplicate-guess and idempotent-replay rules are tested and fail the build if either inflates `GuessCount`.
 - `dotnet test` for Domain + Application is green without Docker.
 - Step markdown `10-unit-tests.md` lists the test names actually implemented.
 
@@ -1299,6 +1369,7 @@ CI (GitHub Actions / Azure Pipelines / Heroku CI — any): restore, `dotnet test
 | Bonus | Section 10 |
 | Portable host | Sections 4.4, 11 |
 | Serilog + follow from client | Section 12 |
+| Every guess logged (flow + business log) | Sections 7.3, 7.4, 8.2, 12.5, 12.10 |
 | App-level DDoS/abuse, deadlock, SQLi | Section 13 |
 | Docs every step | Section 14 |
 | Unit and other tests | Section 16 |
@@ -1327,7 +1398,7 @@ CI (GitHub Actions / Azure Pipelines / Heroku CI — any): restore, `dotnet test
 | Player vs bot | 10 | Flowchart |
 | Correlation through layers | 12.2 | Sequence |
 | One CorrelationId | 12.4 | Flowchart |
-| Serilog vs audit | 12.10 | Flowchart |
+| Serilog vs audit vs guess log | 12.10 | Flowchart |
 | Security layers | 13 | Flowchart |
 | Deadlock-safe UoW | 13.3 | Flowchart |
 | SQL injection guards | 13.4 | Flowchart |
@@ -1343,5 +1414,6 @@ CI (GitHub Actions / Azure Pipelines / Heroku CI — any): restore, `dotnet test
 | 1.0 | 2026-09-04 | Full plan captured from architecture discussion. No application code. Cloud-agnostic. Serilog correlation from client through domain. |
 | 1.1 | 2026-09-04 | Added Mermaid charts for architecture, domain, APIs, UI, logging, security, and implementation order. |
 | 1.2 | 2026-09-04 | Expanded testing plan: domain unit tests, application/API/React tests, pyramid, commands, definition of done. |
+| 1.3 | 2026-09-04 | Closed business-logic gaps: every guess is now persisted as a durable `Guess` row (not just Serilog flow logs), added `GuessNumber`/`IdempotencyKey`, duplicate-guess handling, guess history endpoint, idempotent guess submission, registration/login failure paths, concrete rate-limit numbers, and the `Won ⇒ GuessCount >= 1` invariant. Matching domain/application/API tests added. |
 
 **Next action:** product owner accepts this plan (or requests edits). Only then start `docs/steps` and code.
