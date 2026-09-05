@@ -105,8 +105,38 @@ public class AbpGuessGameWebModule : AbpModule
 
             PreConfigure<OpenIddictServerBuilder>(serverBuilder =>
             {
-                serverBuilder.AddProductionEncryptionAndSigningCertificate("openiddict.pfx", configuration["AuthServer:CertificatePassPhrase"]!);
-                serverBuilder.SetIssuer(new Uri(configuration["AuthServer:Authority"]!));
+                var certificatePath = Path.Combine(
+                    hostingEnvironment.ContentRootPath,
+                    "openiddict.pfx");
+
+                if (!File.Exists(certificatePath))
+                {
+                    throw new FileNotFoundException(
+                        $"OpenIddict certificate not found: {certificatePath}");
+                }
+
+                var certificatePassword =
+                    configuration["AuthServer:CertificatePassPhrase"];
+
+                if (string.IsNullOrWhiteSpace(certificatePassword))
+                {
+                    throw new InvalidOperationException(
+                        "AuthServer:CertificatePassPhrase is not configured.");
+                }
+
+                var certificate = X509CertificateLoader.LoadPkcs12FromFile(
+                    certificatePath,
+                    certificatePassword,
+                    X509KeyStorageFlags.EphemeralKeySet);
+
+                serverBuilder.AddEncryptionCertificate(certificate);
+                serverBuilder.AddSigningCertificate(certificate);
+
+                if (!string.IsNullOrEmpty(configuration["AuthServer:Authority"]))
+                {
+                    serverBuilder.SetIssuer(
+                        new Uri(configuration["AuthServer:Authority"]!));
+                }
             });
         }
     }
@@ -128,7 +158,7 @@ public class AbpGuessGameWebModule : AbpModule
             {
                 options.DisableTransportSecurityRequirement = true;
             });
-            
+
             Configure<ForwardedHeadersOptions>(options =>
             {
                 options.ForwardedHeaders = ForwardedHeaders.XForwardedProto;
