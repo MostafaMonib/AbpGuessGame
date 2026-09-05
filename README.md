@@ -13,7 +13,7 @@ Guess-the-Number app (React + ABP REST API + PostgreSQL).
 ### Pre-requirements
 
 * [.NET10.0+ SDK](https://dotnet.microsoft.com/download/dotnet)
-* [Node v18 or 20](https://nodejs.org/en)
+* [Node v18](https://nodejs.org/en)
 
 ### Configurations
 

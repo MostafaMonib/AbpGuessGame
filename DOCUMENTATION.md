@@ -1,8 +1,5 @@
 # AbpGuessGame — Complete Architecture and Design Plan
 
-> **Status:** Design documentation only. Application code is **not** started until this plan is accepted and an explicit go-ahead is given.  
-> **Working rule:** Think twice rather than code.
-
 This file is the **single source of truth** for the product, architecture, domain, APIs, UI, logging, tracing, security, configuration, documentation-per-step, and later implementation order.
 
 Diagrams use **Mermaid** (flowchart, sequence, state, ER). They render in GitHub, GitLab, many IDEs, and Cursor preview. They describe the **same** design as the text; they do not add new scope.
@@ -11,7 +8,7 @@ Diagrams use **Mermaid** (flowchart, sequence, state, ER). They render in GitHub
 
 ## Table of contents
 
-1. [Interview brief and goals](#1-interview-brief-and-goals)
+1. [Brief and goals](#1-brief-and-goals)
 2. [Decisions already made](#2-decisions-already-made)
 3. [What we are not building](#3-what-we-are-not-building)
 4. [Architecture](#4-architecture)
@@ -32,7 +29,7 @@ Diagrams use **Mermaid** (flowchart, sequence, state, ER). They render in GitHub
 
 ---
 
-## 1. Interview brief and goals
+## 1. Brief and goals
 
 ### 1.1 Required features
 
@@ -346,7 +343,7 @@ flowchart LR
 
 | Area | Choice |
 |------|--------|
-| Runtime | .NET 8 or 9 (whatever current ABP CLI templates pin) |
+| Runtime | .NET 10 |
 | Framework | ABP Framework (open source), **app** template, **no bundled UI** |
 | API | REST, ABP application services + conventional controllers |
 | Auth | OpenIddict, JWT Bearer |
