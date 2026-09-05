@@ -29,8 +29,8 @@ export const WinModal: React.FC<{
 
           <BotRaceComparison
             playerGuesses={result.guessCount}
-            botGuesses={result.botGuessCount}
-            beatTheBot={result.beatTheBot}
+            botGuesses={result.botGuessCount ?? 0}
+            beatTheBot={result.beatTheBot ?? false}
           />
 
           <button

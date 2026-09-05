@@ -34,19 +34,19 @@ export const GuessHistory: React.FC<{ items: GuessHistoryItemDto[] }> = ({ items
             </div>
 
             <div className="flex items-center space-x-1.5">
-              {item.hint === 'Higher' && (
+              {(item.hint === 'Higher' || (item.hint as unknown) === 0) && (
                 <span className="flex items-center space-x-1 text-xs font-medium text-amber-400 bg-amber-950/40 px-2 py-0.5 rounded border border-amber-800/60">
                   <ArrowUpCircle className="w-3.5 h-3.5" />
                   <span>Aim Higher</span>
                 </span>
               )}
-              {item.hint === 'Lower' && (
+              {(item.hint === 'Lower' || (item.hint as unknown) === 1) && (
                 <span className="flex items-center space-x-1 text-xs font-medium text-cyan-400 bg-cyan-950/40 px-2 py-0.5 rounded border border-cyan-800/60">
                   <ArrowDownCircle className="w-3.5 h-3.5" />
                   <span>Aim Lower</span>
                 </span>
               )}
-              {item.hint === 'Correct' && (
+              {(item.hint === 'Correct' || (item.hint as unknown) === 2) && (
                 <span className="flex items-center space-x-1 text-xs font-medium text-emerald-400 bg-emerald-950/40 px-2 py-0.5 rounded border border-emerald-800/60">
                   <CheckCircle2 className="w-3.5 h-3.5" />
                   <span>Correct!</span>

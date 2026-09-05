@@ -18,10 +18,5 @@ public class Game : AuditedAggregateRoot<Guid>
 
     public int BotGuessCount { get; set; }
 
-    public string? ConcurrencyStamp { get; set; }
-
-    [Timestamp]
-    public byte[]? RowVersion { get; set; }
-
     public ICollection<Guess> Guesses { get; set; } = new List<Guess>();
 }

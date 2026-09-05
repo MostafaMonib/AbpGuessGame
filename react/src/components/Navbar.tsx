@@ -24,7 +24,7 @@ export const Navbar: React.FC<{ onToggleLogs: () => void; isLogsOpen: boolean }>
               <Trophy className="w-4 h-4 text-amber-400" />
               <span className="text-xs text-slate-300">Best Score:</span>
               <span className="text-sm font-semibold text-amber-400">
-                {user.bestGuessCount !== null ? `${user.bestGuessCount} guesses` : 'No win yet'}
+                {user.bestGuessCount != null ? `${user.bestGuessCount} guesses` : 'No win yet'}
               </span>
             </div>
 

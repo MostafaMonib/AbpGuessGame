@@ -1,5 +1,5 @@
-export type GameStatus = 'InProgress' | 'Won' | 'Abandoned';
-export type Hint = 'Higher' | 'Lower' | 'Correct';
+export type GameStatus = 'InProgress' | 'Won' | 'Abandoned' | 0 | 1 | 2;
+export type Hint = 'Higher' | 'Lower' | 'Correct' | 0 | 1 | 2;
 
 export interface GameDto {
   id: string;
@@ -13,18 +13,19 @@ export interface GameDto {
 
 export interface GuessResultDto {
   gameId: string;
-  guessNumber: number;
-  value: number;
+  guessNumber?: number;
+  value?: number;
   hint: Hint;
   status: GameStatus;
   guessCount: number;
-  isCorrect: boolean;
+  isCorrect?: boolean;
   alreadyGuessed: boolean;
   secretNumber?: number | null;
-  botGuessCount: number;
-  beatTheBot: boolean;
+  botGuessCount?: number | null;
+  beatTheBot?: boolean | null;
   bestGuessCount?: number | null;
-  isNewBest: boolean;
+  updatedBestGuessCount?: number | null;
+  isNewBest?: boolean;
 }
 
 export interface GuessHistoryItemDto {

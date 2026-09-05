@@ -83,13 +83,7 @@ public class AbpGuessGameDbContext :
 
         /* Configure your own tables/entities inside here */
 
-        // Extend AppUser with BestGuessCount
-        builder.Entity<AppUser>(b =>
-        {
-            b.ToTable("AbpUsers");
-            b.Property(x => x.BestGuessCount).HasColumnType("integer").IsRequired(false);
-            b.HasBaseType<IdentityUser>();
-        });
+
 
         builder.Entity<Game>(b =>
         {
@@ -100,10 +94,6 @@ public class AbpGuessGameDbContext :
             b.Property(x => x.GuessCount).IsRequired();
             b.Property(x => x.Status).HasConversion<int>().IsRequired();
             b.Property(x => x.BotGuessCount).IsRequired();
-
-            b.Property(x => x.RowVersion)
-                .IsRowVersion()
-                .IsConcurrencyToken();
 
             b.HasMany(x => x.Guesses).WithOne(g => g.Game).HasForeignKey(g => g.GameId);
         });

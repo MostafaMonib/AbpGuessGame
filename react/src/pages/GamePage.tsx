@@ -20,7 +20,7 @@ export const GamePage: React.FC = () => {
     setIsLoading(true);
     try {
       const active = await GameService.getActiveGame();
-      if (active && active.status === 'InProgress') {
+      if (active && (active.status === 'InProgress' || (active.status as unknown) === 0)) {
         setGame(active);
         const hist = await GameService.getGuessHistory(active.id);
         setHistory(hist);
@@ -56,12 +56,16 @@ export const GamePage: React.FC = () => {
     if (!game) return;
     setIsSubmitting(true);
     try {
-      const result = await GameService.submitGuess(val);
+      const result = await GameService.submitGuess(game.id, val);
       setLastResult(result);
 
       if (result.isCorrect) {
         setWinResult(result);
+        setGame(prev => prev ? { ...prev, status: 'Won' as const, guessCount: result.guessCount } : prev);
         await refreshProfile();
+      } else {
+        // Update guess count on non-win as well
+        setGame(prev => prev ? { ...prev, guessCount: result.guessCount } : prev);
       }
 
       const updatedHistory = await GameService.getGuessHistory(game.id);

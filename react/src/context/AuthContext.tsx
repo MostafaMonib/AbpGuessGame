@@ -27,7 +27,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return;
     }
     try {
-      const profile = await GameService.getCurrentUser();
+      const [profile] = await Promise.all([
+        GameService.getCurrentUser(),
+        GameService.getApplicationConfiguration()
+      ]);
       setUser(profile);
     } catch {
       logout();

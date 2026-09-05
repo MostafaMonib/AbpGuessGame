@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { GameDto, GuessResultDto } from '../types/game';
-import { ArrowUpCircle, ArrowDownCircle, AlertCircle, Send, Dices } from 'lucide-react';
+import { ArrowUpCircle, ArrowDownCircle, AlertCircle, Send, Dices, RotateCcw } from 'lucide-react';
 
 interface GameBoardProps {
   game: GameDto;
@@ -8,6 +8,13 @@ interface GameBoardProps {
   onGuess: (value: number) => Promise<void>;
   isSubmitting: boolean;
 }
+
+const MILESTONE_PRESETS = [
+  [37, 8, 21, 4, 42, 15, 2, 29, 11, 33, 18],
+  [9, 26, 3, 40, 14, 31, 7, 22, 38, 1, 16],
+  [27, 12, 35, 6, 43, 20, 30, 5, 24, 17, 39],
+  [13, 28, 10, 36, 23, 41, 19, 32, 25, 34]
+];
 
 export const GameBoard: React.FC<GameBoardProps> = ({
   game,
@@ -17,6 +24,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 }) => {
   const [inputValue, setInputValue] = useState<string>('');
   const [validationError, setValidationError] = useState<string | null>(null);
+  const [presetIndex, setPresetIndex] = useState<number>(0);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -36,6 +44,12 @@ export const GameBoard: React.FC<GameBoardProps> = ({
     setInputValue(val.toString());
     setValidationError(null);
   };
+
+  const handleNextPreset = () => {
+    setPresetIndex((prev) => (prev + 1) % MILESTONE_PRESETS.length);
+  };
+
+  const currentMilestones = MILESTONE_PRESETS[presetIndex];
 
   return (
     <div className="bg-slate-800/80 rounded-2xl border border-slate-700/80 p-6 shadow-xl">
@@ -71,7 +85,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             </div>
           )}
 
-          {!lastResult.alreadyGuessed && lastResult.hint === 'Higher' && (
+          {!lastResult.alreadyGuessed && (lastResult.hint === 'Higher' || (lastResult.hint as unknown) === 0) && (
             <div className="p-4 rounded-xl bg-amber-950/40 border border-amber-700/70 text-amber-300 flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <ArrowUpCircle className="w-6 h-6 text-amber-400 flex-shrink-0" />
@@ -86,7 +100,7 @@ export const GameBoard: React.FC<GameBoardProps> = ({
             </div>
           )}
 
-          {!lastResult.alreadyGuessed && lastResult.hint === 'Lower' && (
+          {!lastResult.alreadyGuessed && (lastResult.hint === 'Lower' || (lastResult.hint as unknown) === 1) && (
             <div className="p-4 rounded-xl bg-cyan-950/40 border border-cyan-700/70 text-cyan-300 flex items-center justify-between">
               <div className="flex items-center space-x-3">
                 <ArrowDownCircle className="w-6 h-6 text-cyan-400 flex-shrink-0" />
@@ -142,13 +156,24 @@ export const GameBoard: React.FC<GameBoardProps> = ({
           )}
         </div>
 
-        {/* Quick Suggestion Buttons */}
+        {/* Quick Suggestion Buttons with Reset / Cycle Preset */}
         <div>
-          <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-2">
-            Quick Binary Search Milestones
+          <div className="flex items-center justify-between mb-2">
+            <div className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">
+              Quick Binary Search Milestones
+            </div>
+            <button
+              type="button"
+              onClick={handleNextPreset}
+              className="inline-flex items-center space-x-1 text-[11px] font-medium text-slate-400 hover:text-emerald-400 transition cursor-pointer"
+              title="Reset / Switch to another milestone set"
+            >
+              <RotateCcw className="w-3 h-3" />
+              <span>Other Milestones</span>
+            </button>
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {[1, 11, 22, 33, 43].map((num) => (
+            {currentMilestones.map((num) => (
               <button
                 key={num}
                 type="button"

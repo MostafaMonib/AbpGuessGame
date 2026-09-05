@@ -25,7 +25,8 @@ describe('GameBoard Component', () => {
     );
 
     expect(screen.getByText(/Guess The Number \(1–43\)/i)).toBeInTheDocument();
-    expect(screen.getByText('2')).toBeInTheDocument();
+    expect(screen.getByText('Attempts')).toBeInTheDocument();
+    expect(screen.getByText('Attempts').nextElementSibling).toHaveTextContent('2');
   });
 
   it('displays Aim HIGHER hint when server returns Higher', () => {

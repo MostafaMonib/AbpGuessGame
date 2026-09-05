@@ -7,17 +7,17 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-        target: 'https://localhost:44300',
+            target: 'https://localhost:44340',
         changeOrigin: true,
         secure: false,
       },
       '/connect': {
-        target: 'https://localhost:44300',
+          target: 'https://localhost:44340',
         changeOrigin: true,
         secure: false,
       },
       '/Account': {
-        target: 'https://localhost:44300',
+          target: 'https://localhost:44340',
         changeOrigin: true,
         secure: false,
       }

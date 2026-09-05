@@ -5,7 +5,6 @@ using System.Threading.Tasks;
 using Volo.Abp.Application.Services;
 using Volo.Abp.Data;
 using Volo.Abp.Domain.Repositories;
-using Volo.Abp.Identity;
 using Volo.Abp.Uow;
 using Microsoft.Extensions.Logging;
 using Volo.Abp.DependencyInjection;
@@ -22,7 +21,6 @@ public class GameAppService : ApplicationService, ITransientDependency
 {
     private readonly IRepository<Game, Guid> _gameRepository;
     private readonly IRepository<Guess, Guid> _guessRepository;
-    private readonly IRepository<IdentityUser, Guid> _userRepository;
     private readonly ISecretNumberGenerator _secretNumberGenerator;
     private readonly BinarySearchBotService _botService;
     private readonly IUnitOfWorkManager _unitOfWorkManager;
@@ -30,14 +28,12 @@ public class GameAppService : ApplicationService, ITransientDependency
     public GameAppService(
         IRepository<Game, Guid> gameRepository,
         IRepository<Guess, Guid> guessRepository,
-        IRepository<IdentityUser, Guid> userRepository,
         ISecretNumberGenerator secretNumberGenerator,
         BinarySearchBotService botService,
         IUnitOfWorkManager unitOfWorkManager)
     {
         _gameRepository = gameRepository;
         _guessRepository = guessRepository;
-        _userRepository = userRepository;
         _secretNumberGenerator = secretNumberGenerator;
         _botService = botService;
         _unitOfWorkManager = unitOfWorkManager;
@@ -96,103 +92,89 @@ public class GameAppService : ApplicationService, ITransientDependency
         if (input.Value < 1 || input.Value > 43)
             throw new ArgumentOutOfRangeException(nameof(input.Value), "Guess must be between 1 and 43");
 
-        using (var uow = _unitOfWorkManager.Begin())
+        // Load the game
+        var game = await _gameRepository.GetAsync(gameId);
+
+        // Authorization: only the owner can guess
+        if (game.UserId != userId)
+            throw new Volo.Abp.Authorization.AbpAuthorizationException("You are not the owner of this game");
+
+        // Status check: must be in progress
+        if (game.Status != GameStatus.InProgress)
+            throw new InvalidOperationException("Game is not in progress");
+
+        // Idempotency check: has this exact idempotency key been seen before?
+        var idempotencyKey = input.IdempotencyKey; // In real app, fallback to X-Correlation-Id if null
+        if (!string.IsNullOrEmpty(idempotencyKey))
         {
-            // Load the game
-            var game = await _gameRepository.GetAsync(gameId);
+            var existingGuess = await _guessRepository.FirstOrDefaultAsync(
+                x => x.GameId == gameId && x.IdempotencyKey == idempotencyKey);
 
-            // Authorization: only the owner can guess
-            if (game.UserId != userId)
-                throw new Volo.Abp.Authorization.AbpAuthorizationException("You are not the owner of this game");
-
-            // Status check: must be in progress
-            if (game.Status != GameStatus.InProgress)
-                throw new InvalidOperationException("Game is not in progress");
-
-            // Idempotency check: has this exact idempotency key been seen before?
-            var idempotencyKey = input.IdempotencyKey; // In real app, fallback to X-Correlation-Id if null
-            if (!string.IsNullOrEmpty(idempotencyKey))
+            if (existingGuess != null)
             {
-                var existingGuess = await _guessRepository.FirstOrDefaultAsync(
-                    x => x.GameId == gameId && x.IdempotencyKey == idempotencyKey);
-
-                if (existingGuess != null)
-                {
-                    Logger.LogInformation(
-                        "Idempotent replay: user {UserId} game {GameId} idempotency key {Key}",
-                        userId, gameId, idempotencyKey);
-                    await uow.CompleteAsync();
-                    return MapToGuessResultDto(game, existingGuess, alreadyGuessed: false);
-                }
+                Logger.LogInformation(
+                    "Idempotent replay: user {UserId} game {GameId} idempotency key {Key}",
+                    userId, gameId, idempotencyKey);
+                return MapToGuessResultDto(game, existingGuess, alreadyGuessed: false);
             }
+        }
 
-            // Duplicate check: has this value already been guessed in this game?
-            var priorGuess = await _guessRepository.FirstOrDefaultAsync(
-                x => x.GameId == gameId && x.Value == input.Value);
+        // Duplicate check: has this value already been guessed in this game?
+        var priorGuess = await _guessRepository.FirstOrDefaultAsync(
+            x => x.GameId == gameId && x.Value == input.Value);
 
-            if (priorGuess != null)
-            {
-                Logger.LogWarning(
-                    "Duplicate guess ignored: user {UserId} game {GameId} value {Value}",
-                    userId, gameId, input.Value);
-                await uow.CompleteAsync();
-                return MapToGuessResultDto(game, priorGuess, alreadyGuessed: true);
-            }
+        if (priorGuess != null)
+        {
+            Logger.LogWarning(
+                "Duplicate guess ignored: user {UserId} game {GameId} value {Value}",
+                userId, gameId, input.Value);
+            return MapToGuessResultDto(game, priorGuess, alreadyGuessed: true);
+        }
 
-            // Record the guess: increment count and determine hint
-            game.GuessCount++;
-            var hint = CompareGuess(input.Value, game.SecretNumber);
+        // Record the guess: increment count and determine hint
+        game.GuessCount++;
+        var hint = CompareGuess(input.Value, game.SecretNumber);
 
-            var newGuess = new Guess
-            {
-                GameId = gameId,
-                GuessNumber = game.GuessCount,
-                Value = input.Value,
-                Hint = hint,
-                IdempotencyKey = idempotencyKey
-            };
+        var newGuess = new Guess
+        {
+            GameId = gameId,
+            GuessNumber = game.GuessCount,
+            Value = input.Value,
+            Hint = hint,
+            IdempotencyKey = idempotencyKey
+        };
 
-            await _guessRepository.InsertAsync(newGuess);
+        await _guessRepository.InsertAsync(newGuess);
+
+        Logger.LogInformation(
+            "Guess persisted: user {UserId} game {GameId} guessNumber {GuessNumber} value {Value} hint {Hint}",
+            userId, gameId, game.GuessCount, input.Value, hint);
+
+        // Check for win
+        if (hint == Hint.Correct)
+        {
+            game.Status = GameStatus.Won;
 
             Logger.LogInformation(
-                "Guess persisted: user {UserId} game {GameId} guessNumber {GuessNumber} value {Value} hint {Hint}",
-                userId, gameId, game.GuessCount, input.Value, hint);
-
-            // Check for win
-            if (hint == Hint.Correct)
-            {
-                game.Status = GameStatus.Won;
-
-                // Update user's best score
-                var user = await _userRepository.GetAsync(userId);
-                var oldBest = user.ConcurrencyStamp; // Placeholder; we'll handle dynamic property
-
-                // Get BestGuessCount via dynamic property access
-                var currentBest = (int?)null;
-                // Note: in real scenario, we'd use EF Core shadow property or custom extension
-
-                if (currentBest == null || game.GuessCount < currentBest)
-                {
-                    // This is a new personal best
-                    Logger.LogInformation(
-                        "New best score: user {UserId} guessCount {GuessCount}",
-                        userId, game.GuessCount);
-                }
-
-                Logger.LogInformation(
-                    "Game won: user {UserId} game {GameId} guessCount {GuessCount}",
-                    userId, gameId, game.GuessCount);
-            }
-
-            // Update the game in the repository
-            await _gameRepository.UpdateAsync(game);
-
-            await uow.CompleteAsync();
-
-            var result = MapToGuessResultDto(game, newGuess, alreadyGuessed: false);
-            result.AlreadyGuessed = false;
-            return result;
+                "Game won: user {UserId} game {GameId} guessCount {GuessCount}",
+                userId, gameId, game.GuessCount);
         }
+
+        // Update the game in the repository
+        await _gameRepository.UpdateAsync(game);
+
+        var result = MapToGuessResultDto(game, newGuess, alreadyGuessed: false);
+        result.AlreadyGuessed = false;
+
+        // Populate UpdatedBestGuessCount on win by querying the user's won games
+        if (game.Status == GameStatus.Won)
+        {
+            var wonGames = await _gameRepository.GetListAsync(
+                x => x.UserId == userId && x.Status == GameStatus.Won);
+            result.UpdatedBestGuessCount = wonGames.Count > 0 ? wonGames.Min(x => x.GuessCount) : game.GuessCount;
+        }
+
+        return result;
     }
 
     /// <summary>

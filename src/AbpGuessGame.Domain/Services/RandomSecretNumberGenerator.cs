@@ -10,6 +10,6 @@ public class RandomSecretNumberGenerator : ISecretNumberGenerator, ISingletonDep
 {
     public int Generate()
     {
-        return RandomNumberGenerator.GetInt32(1, 43);
+        return RandomNumberGenerator.GetInt32(1, 44); // GetInt32 upper bound is exclusive; 44 gives [1, 43]
     }
 }
