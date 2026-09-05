@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.DependencyInjection;
 using Volo.Abp;
 using Volo.Abp.Authorization;
 using Volo.Abp.Autofac;
@@ -29,13 +29,6 @@ public class AbpGuessGameTestBaseModule : AbpModule
 
     public override void OnApplicationInitialization(ApplicationInitializationContext context)
     {
-        // Get the current module being initialized; skip seeding for EF SQLite tests
-        var currentModule = context.ServiceProvider.GetService<AbpGuessGameTestBaseModule>();
-        if (currentModule != null && currentModule.GetType().Name.Contains("EntityFrameworkCoreTestModule"))
-        {
-            return;
-        }
-
         SeedTestData(context);
     }
 

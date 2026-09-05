@@ -281,3 +281,5 @@ src/AbpGuessGame.Blazor.Server.Tiered/Logs/*
 # IdentityServer temp files
 tempkey.rsa
 tempkey.jwk
+/Logs
+/docs

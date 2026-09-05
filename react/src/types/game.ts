@@ -1,0 +1,46 @@
+export type GameStatus = 'InProgress' | 'Won' | 'Abandoned';
+export type Hint = 'Higher' | 'Lower' | 'Correct';
+
+export interface GameDto {
+  id: string;
+  userId: string;
+  status: GameStatus;
+  guessCount: number;
+  botGuessCount: number;
+  secretNumber?: number | null;
+  creationTime: string;
+}
+
+export interface GuessResultDto {
+  gameId: string;
+  guessNumber: number;
+  value: number;
+  hint: Hint;
+  status: GameStatus;
+  guessCount: number;
+  isCorrect: boolean;
+  alreadyGuessed: boolean;
+  secretNumber?: number | null;
+  botGuessCount: number;
+  beatTheBot: boolean;
+  bestGuessCount?: number | null;
+  isNewBest: boolean;
+}
+
+export interface GuessHistoryItemDto {
+  id: string;
+  guessNumber: number;
+  value: number;
+  hint: Hint;
+  creationTime: string;
+}
+
+export interface ClientLogEntry {
+  id: string;
+  timestamp: string;
+  level: 'info' | 'warn' | 'error';
+  message: string;
+  correlationId?: string;
+  data?: unknown;
+}
+

@@ -1,17 +1,17 @@
 using System;
 using System.Threading.Tasks;
 using Shouldly;
+using Volo.Abp.Modularity;
+using AbpGuessGame.Application;
 using Xunit;
 
 namespace AbpGuessGame.Application.Tests;
 
 /// <summary>
 /// Application service tests for GameAppService.
-/// Note: Full app service testing requires a running database and DI container.
-/// These are integration tests rather than unit tests.
-/// For comprehensive app service testing, see HttpApi integration tests.
 /// </summary>
-public class GameAppServiceIntegrationTests : AbpGuessGameApplicationTestBase<AbpGuessGameApplicationModule>
+public abstract class GameAppServiceIntegrationTests<TStartupModule> : AbpGuessGameApplicationTestBase<TStartupModule>
+    where TStartupModule : IAbpModule
 {
     /// <summary>
     /// Placeholder test to verify test infrastructure is wired correctly.

@@ -1,4 +1,7 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Data.Sqlite;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.DependencyInjection;
 using Volo.Abp;
 using Volo.Abp.Data;
@@ -18,7 +21,7 @@ namespace AbpGuessGame.EntityFrameworkCore;
 )]
 public class AbpGuessGameEntityFrameworkCoreTestModule : AbpModule
 {
-    private AbpUnitTestSqliteDatabase? _database;
+    private SqliteConnection? _sqliteConnection;
 
     public override void PreConfigureServices(ServiceConfigurationContext context)
     {
@@ -40,39 +43,40 @@ public class AbpGuessGameEntityFrameworkCoreTestModule : AbpModule
         context.Services.AddAlwaysDisableUnitOfWorkTransaction();
 
         ConfigureInMemorySqlite(context.Services);
-
     }
 
     private void ConfigureInMemorySqlite(IServiceCollection services)
     {
-        _database = new AbpUnitTestSqliteDatabase();
-
-        services.Configure<AbpDbConnectionOptions>(options =>
-        {
-            options.ConnectionStrings.Default = _database.ConnectionString;
-        });
+        _sqliteConnection = CreateDatabaseAndGetConnection();
 
         services.Configure<AbpDbContextOptions>(options =>
         {
             options.Configure(context =>
             {
-                context.UseSqlite();
+                context.DbContextOptions.UseSqlite(_sqliteConnection);
             });
         });
-
-        // Create tables after services are registered
-        // This is deferred until after DI is fully configured
-    }
-
-    public override void OnApplicationInitialization(ApplicationInitializationContext context)
-    {
-        var dbContext = context.ServiceProvider.GetRequiredService<AbpGuessGameDbContext>();
-        dbContext.Database.EnsureCreated();
-        // Skip seeding for SQLite tests; use focused integration tests
     }
 
     public override void OnApplicationShutdown(ApplicationShutdownContext context)
     {
-        _database?.Dispose();
+        _sqliteConnection?.Dispose();
+    }
+
+    private static SqliteConnection CreateDatabaseAndGetConnection()
+    {
+        var connection = new SqliteConnection("Data Source=:memory:");
+        connection.Open();
+
+        var options = new DbContextOptionsBuilder<AbpGuessGameDbContext>()
+            .UseSqlite(connection)
+            .Options;
+
+        using (var context = new AbpGuessGameDbContext(options))
+        {
+            context.GetService<IRelationalDatabaseCreator>().CreateTables();
+        }
+
+        return connection;
     }
 }
