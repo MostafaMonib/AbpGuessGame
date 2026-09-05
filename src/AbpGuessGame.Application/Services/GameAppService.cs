@@ -171,7 +171,7 @@ public class GameAppService : ApplicationService, ITransientDependency
         {
             var wonGames = await _gameRepository.GetListAsync(
                 x => x.UserId == userId && x.Status == GameStatus.Won);
-            result.UpdatedBestGuessCount = wonGames.Count > 0 ? wonGames.Min(x => x.GuessCount) : game.GuessCount;
+            result.UpdatedBestGuessCount = wonGames is not null && wonGames.Count > 0 ? wonGames.Min(x => x.GuessCount) : game.GuessCount;
         }
 
         return result;
