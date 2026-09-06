@@ -1675,7 +1675,7 @@ This structure provides a clean separation between **presentation, API, applicat
 
 Source code:
 
-[AbpGuessGame on GitHub](https://github.com/MostafaMonib/AbpGuessGame?utm_source=chatgpt.com)
+[AbpGuessGame on GitHub](https://github.com/MostafaMonib/AbpGuessGame)
 
 ---
 
