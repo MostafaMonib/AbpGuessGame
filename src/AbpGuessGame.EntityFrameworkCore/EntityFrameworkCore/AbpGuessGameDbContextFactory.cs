@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.IO;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
@@ -12,15 +12,12 @@ public class AbpGuessGameDbContextFactory : IDesignTimeDbContextFactory<AbpGuess
 {
     public AbpGuessGameDbContext CreateDbContext(string[] args)
     {
-        // https://www.npgsql.org/efcore/release-notes/6.0.html#opting-out-of-the-new-timestamp-mapping-logic
-        AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
-        
         var configuration = BuildConfiguration();
         
         AbpGuessGameEfCoreEntityExtensionMappings.Configure();
 
         var builder = new DbContextOptionsBuilder<AbpGuessGameDbContext>()
-            .UseNpgsql(configuration.GetConnectionString("Default"));
+            .UseSqlServer(configuration.GetConnectionString("Default"));
         
         return new AbpGuessGameDbContext(builder.Options);
     }

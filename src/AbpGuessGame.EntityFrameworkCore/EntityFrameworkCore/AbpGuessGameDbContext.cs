@@ -109,7 +109,7 @@ public class AbpGuessGameDbContext :
             b.Property(x => x.IdempotencyKey).HasMaxLength(256);
 
             // Unique idempotency key per game when set
-            b.HasIndex("GameId", "IdempotencyKey").IsUnique().HasFilter("\"IdempotencyKey\" IS NOT NULL");
+            b.HasIndex("GameId", "IdempotencyKey").IsUnique().HasFilter("[IdempotencyKey] IS NOT NULL");
         });
     }
 }
