@@ -1,0 +1,8 @@
+{
+  "rewrites": [
+    { "source": "/api/:match*", "destination": "https://abpguessgame-api.runasp.net/api/:match*" },
+    { "source": "/connect/:match*", "destination": "https://abpguessgame-api.runasp.net/connect/:match*" },
+    { "source": "/Account/:match*", "destination": "https://abpguessgame-api.runasp.net/Account/:match*" },
+    { "source": "/((?!api|connect|Account).*)", "destination": "/index.html" }
+  ]
+}

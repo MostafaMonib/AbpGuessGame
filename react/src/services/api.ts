@@ -21,15 +21,37 @@ export function logClientEvent(level: 'info' | 'warn' | 'error', message: string
         correlationId,
         data
     };
+    if (level === 'error') {
+        console.error(`[API Error] ${message}`, { correlationId, data });
+    } else if (level === 'warn') {
+        console.warn(`[API Warning] ${message}`, { correlationId, data });
+    } else {
+        console.log(`[API Info] ${message}`, { correlationId, data });
+    }
     logListeners.forEach(fn => fn(entry));
 }
 
+const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+console.log(`%c[AbpGuessGame API]%c Initialized with BASE_URL: "${BASE_URL || '(relative / same-origin)'}"`, 'color: #10b981; font-weight: bold;', 'color: inherit;');
+
 const api = axios.create({
-    baseURL: '',
+    baseURL: BASE_URL,
+    withCredentials: true,
     headers: {
         'Content-Type': 'application/json',
     },
 });
+
+function generateUUID(): string {
+  if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+    return crypto.randomUUID();
+  }
+  return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, (c) => {
+    const r = (Math.random() * 16) | 0;
+    const v = c === 'x' ? r : (r & 0x3) | 0x8;
+    return v.toString(16);
+  });
+}
 
 function getXsrfToken(): string | null {
   const match = document.cookie.match(new RegExp('(^|;\\s*)(?:XSRF-TOKEN|RequestVerificationToken)=([^;]*)'));
@@ -47,7 +69,7 @@ async function refreshAntiForgeryToken() {
 }
 
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
-  const correlationId = crypto.randomUUID();
+  const correlationId = generateUUID();
   config.headers.set('X-Correlation-Id', correlationId);
   config.headers.set('X-Requested-With', 'XMLHttpRequest');
 
@@ -91,7 +113,7 @@ export const GameService = {
     async submitGuess(gameId: string, value: number, idempotencyKey?: string): Promise<GuessResultDto> {
         const res = await api.post<GuessResultDto>(`/api/app/games/${gameId}/guess`, {
             value,
-            idempotencyKey: idempotencyKey || crypto.randomUUID()
+            idempotencyKey: idempotencyKey || generateUUID()
         });
         const data = res.data;
         const isWon = data.status === 'Won' || (data.status as unknown) === 1;
@@ -125,6 +147,13 @@ export const GameService = {
     },
 
     async login(userNameOrEmailAddress: string, password: string): Promise<AuthResponse> {
+        const url = `${BASE_URL}/connect/token`;
+        const correlationId = generateUUID();
+        console.log(`%c[Auth Service]%c Sending POST request to: ${url}`, 'color: #3b82f6; font-weight: bold;', 'color: inherit;', {
+            username: userNameOrEmailAddress,
+            correlationId
+        });
+
         const params = new URLSearchParams();
         params.append('grant_type', 'password');
         params.append('client_id', 'AbpGuessGame_App');
@@ -132,13 +161,25 @@ export const GameService = {
         params.append('password', password);
         params.append('scope', 'openid profile email AbpGuessGame');
 
-        const res = await axios.post<AuthResponse>('/connect/token', params, {
-            headers: {
-                'Content-Type': 'application/x-www-form-urlencoded',
-                'X-Correlation-Id': crypto.randomUUID()
-            }
-        });
-        return res.data;
+        try {
+            const res = await axios.post<AuthResponse>(url, params, {
+                headers: {
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'X-Correlation-Id': correlationId
+                }
+            });
+            console.log(`%c[Auth Service]%c Login SUCCESS (${res.status})`, 'color: #10b981; font-weight: bold;', 'color: inherit;', res.data);
+            return res.data;
+        } catch (error) {
+            const axiosErr = error as AxiosError;
+            console.error(`%c[Auth Service]%c Login FAILED for URL: ${url}`, 'color: #ef4444; font-weight: bold;', 'color: inherit;', {
+                status: axiosErr.response?.status,
+                statusText: axiosErr.response?.statusText,
+                data: axiosErr.response?.data,
+                message: axiosErr.message
+            });
+            throw error;
+        }
     },
 
     async register(userName: string, emailAddress: string, password: string): Promise<void> {

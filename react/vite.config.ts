@@ -7,19 +7,39 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/api': {
-            target: 'https://localhost:44341',
+        target: 'https://abpguessgame-api.runasp.net',
         changeOrigin: true,
-        secure: false,
+        secure: true,
       },
       '/connect': {
-          target: 'https://localhost:44341',
+        target: 'https://abpguessgame-api.runasp.net',
         changeOrigin: true,
-        secure: false,
+        secure: true,
       },
       '/Account': {
-          target: 'https://localhost:44341',
+        target: 'https://abpguessgame-api.runasp.net',
         changeOrigin: true,
-        secure: false,
+        secure: true,
+      }
+    }
+  },
+  preview: {
+    port: 3000,
+    proxy: {
+      '/api': {
+        target: 'https://abpguessgame-api.runasp.net',
+        changeOrigin: true,
+        secure: true,
+      },
+      '/connect': {
+        target: 'https://abpguessgame-api.runasp.net',
+        changeOrigin: true,
+        secure: true,
+      },
+      '/Account': {
+        target: 'https://abpguessgame-api.runasp.net',
+        changeOrigin: true,
+        secure: true,
       }
     }
   },

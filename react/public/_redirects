@@ -1,0 +1,4 @@
+/api/*  https://abpguessgame-api.runasp.net/api/:splat  200
+/connect/*  https://abpguessgame-api.runasp.net/connect/:splat  200
+/Account/*  https://abpguessgame-api.runasp.net/Account/:splat  200
+/*  /index.html  200

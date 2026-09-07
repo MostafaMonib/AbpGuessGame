@@ -13,12 +13,37 @@ export const LoginPage: React.FC<{ onSwitchToRegister: () => void }> = ({ onSwit
     e.preventDefault();
     setError(null);
     setIsSubmitting(true);
+    console.log('[LoginPage] Form submitted with username:', username);
 
     try {
       await login(username, password);
+      console.log('[LoginPage] Login completed successfully.');
     } catch (err: unknown) {
-      const msg = (err as { response?: { data?: { error_description?: string } } })?.response?.data?.error_description
-        || 'Invalid credentials. Please verify username and password.';
+      console.error('[LoginPage] Login caught exception:', err);
+      const axiosErr = err as {
+        message?: string;
+        response?: {
+          status?: number;
+          statusText?: string;
+          data?: { error_description?: string; message?: string } | string;
+        };
+      };
+
+      let msg = '';
+      if (typeof axiosErr.response?.data === 'object' && axiosErr.response?.data?.error_description) {
+        msg = axiosErr.response.data.error_description;
+      } else if (typeof axiosErr.response?.data === 'object' && axiosErr.response?.data?.message) {
+        msg = axiosErr.response.data.message;
+      } else if (axiosErr.response?.status === 404) {
+        msg = 'HTTP 404: Auth endpoint not found. Please verify backend URL or proxy rewrites.';
+      } else if (axiosErr.response?.status) {
+        msg = `HTTP Error ${axiosErr.response.status} (${axiosErr.response.statusText || 'Server Error'}).`;
+      } else if (axiosErr.message) {
+        msg = `${axiosErr.message} (Check network / CORS connection).`;
+      } else {
+        msg = 'Invalid credentials. Please verify username and password.';
+      }
+
       setError(msg);
     } finally {
       setIsSubmitting(false);
