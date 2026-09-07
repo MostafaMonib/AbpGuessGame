@@ -24,15 +24,5 @@ public static class AbpGuessGameModuleExtensionConfigurator
 
     private static void ConfigureExtraProperties()
     {
-        ObjectExtensionManager.Instance.Modules()
-            .ConfigureIdentity(identity =>
-            {
-                identity.ConfigureUser(user =>
-                {
-                    user.AddOrUpdateProperty<int?>(
-                        "BestGuessCount"
-                    );
-                });
-            });
     }
 }

@@ -13,9 +13,6 @@ public static class AbpGuessGameDtoExtensions
     {
         OneTimeRunner.Run(() =>
         {
-            ObjectExtensionManager.Instance
-                .AddOrUpdateProperty<IdentityUserDto, int?>("BestGuessCount")
-                .AddOrUpdateProperty<ProfileDto, int?>("BestGuessCount");
         });
     }
 }
