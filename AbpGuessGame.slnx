@@ -11,6 +11,7 @@
         <Project Path="src/AbpGuessGame.Domain/AbpGuessGame.Domain.csproj" />
         <Project Path="src/AbpGuessGame.EntityFrameworkCore/AbpGuessGame.EntityFrameworkCore.csproj" />
         <Project Path="src/AbpGuessGame.HttpApi.Client/AbpGuessGame.HttpApi.Client.csproj" />
+        <Project Path="src/AbpGuessGame.HttpApi.Host/AbpGuessGame.HttpApi.Host.csproj" />
         <Project Path="src/AbpGuessGame.HttpApi/AbpGuessGame.HttpApi.csproj" />
         <Project Path="src/AbpGuessGame.Web/AbpGuessGame.Web.csproj" />
     </Folder>

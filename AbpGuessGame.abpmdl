@@ -113,6 +113,9 @@
     "AbpGuessGame.Domain": {
       "path": "src/AbpGuessGame.Domain/AbpGuessGame.Domain.abppkg",
       "folder": "src"
+    },
+    "AbpGuessGame.HttpApi.Host": {
+      "path": "AbpGuessGame.HttpApi.Host/AbpGuessGame.HttpApi.Host.abppkg"
     }
   }
 }
