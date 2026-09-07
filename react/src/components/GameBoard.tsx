@@ -38,6 +38,9 @@ export const GameBoard: React.FC<GameBoardProps> = ({
 
     await onGuess(num);
     setInputValue('');
+    window.requestAnimationFrame(() => {
+      document.getElementById('guess-input')?.focus();
+    });
   };
 
   const handleQuickPick = (val: number) => {
