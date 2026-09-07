@@ -7,7 +7,7 @@ import { GuessHistory } from '../components/GuessHistory';
 import { WinModal } from '../components/WinModal';
 import { Play, Loader2 } from 'lucide-react';
 
-export const GamePage: React.FC = () => {
+export const GamePage: React.FC<{ onGameResult: (result: GuessResultDto) => void }> = ({ onGameResult }) => {
   const { refreshProfile } = useAuth();
   const [game, setGame] = useState<GameDto | null>(null);
   const [history, setHistory] = useState<GuessHistoryItemDto[]>([]);
@@ -58,6 +58,7 @@ export const GamePage: React.FC = () => {
     try {
       const result = await GameService.submitGuess(game.id, val);
       setLastResult(result);
+      onGameResult(result);
 
       if (result.isCorrect) {
         setWinResult(result);
