@@ -8,11 +8,13 @@
 [![PostgreSQL](https://img.shields.io/badge/PostgreSQL-Database-4169E1?logo=postgresql)](https://www.postgresql.org/)
 [![Architecture](https://img.shields.io/badge/Architecture-Modular%20Monolith-success)]()
 [![License](https://img.shields.io/badge/License-MIT-green)]()
+[![Live Demo](https://img.shields.io/badge/Live%20Demo-abpguessgame.runasp.net-success?logo=googlechrome&logoColor=white)](https://abpguessgame.runasp.net/)
 
 ---
 
 ## Table of Contents
 
+* [Live Demo](#live-demo)
 * [Overview](#overview)
 * [Key Capabilities](#key-capabilities)
 * [Architecture at a Glance](#architecture-at-a-glance)
@@ -37,6 +39,26 @@
 * [Documentation](#documentation)
 * [Acceptance Checklist](#acceptance-checklist)
 * [Additional Resources](#additional-resources)
+
+---
+
+# Live Demo
+
+The hosted application is live and ready to use:
+
+* **Live Demo URL:** [https://abpguessgame.runasp.net/](https://abpguessgame.runasp.net/)
+
+### Default Login Credentials
+
+You can sign in using the default seeded ABP administrator credentials or register a new player account:
+
+| Field | Value |
+| --- | --- |
+| **Username** | `admin` |
+| **Password** | `1q2w3E*` |
+
+> [!NOTE]
+> You can also register a new account directly from the register page if you would like to start with a fresh player profile.
 
 ---
 
