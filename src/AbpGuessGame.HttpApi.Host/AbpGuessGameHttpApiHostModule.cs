@@ -48,6 +48,8 @@ public class AbpGuessGameHttpApiHostModule : AbpModule
 
     public override void PreConfigureServices(ServiceConfigurationContext context)
     {
+        var configuration = context.Services.GetConfiguration();
+
         PreConfigure<OpenIddictBuilder>(builder =>
         {
             builder.AddValidation(options =>
@@ -56,6 +58,23 @@ public class AbpGuessGameHttpApiHostModule : AbpModule
                 options.UseLocalServer();
                 options.UseAspNetCore();
             });
+        });
+
+        PreConfigure<AbpOpenIddictAspNetCoreOptions>(options =>
+        {
+            options.AddDevelopmentEncryptionAndSigningCertificate = false;
+        });
+
+        PreConfigure<OpenIddictServerBuilder>(serverBuilder =>
+        {
+            serverBuilder.AddEphemeralEncryptionKey();
+            serverBuilder.AddEphemeralSigningKey();
+
+            var authority = configuration["AuthServer:Authority"];
+            if (!string.IsNullOrEmpty(authority))
+            {
+                serverBuilder.SetIssuer(new Uri(authority));
+            }
         });
     }
 

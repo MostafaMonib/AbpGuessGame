@@ -1,4 +1,4 @@
-﻿using System.IO;
+using System.IO;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
 using Microsoft.AspNetCore.HttpOverrides;
@@ -96,49 +96,22 @@ public class AbpGuessGameWebModule : AbpModule
             });
         });
 
-        if (!hostingEnvironment.IsDevelopment())
+        PreConfigure<AbpOpenIddictAspNetCoreOptions>(options =>
         {
-            PreConfigure<AbpOpenIddictAspNetCoreOptions>(options =>
+            options.AddDevelopmentEncryptionAndSigningCertificate = false;
+        });
+
+        PreConfigure<OpenIddictServerBuilder>(serverBuilder =>
+        {
+            serverBuilder.AddEphemeralEncryptionKey();
+            serverBuilder.AddEphemeralSigningKey();
+
+            if (!string.IsNullOrEmpty(configuration["AuthServer:Authority"]))
             {
-                options.AddDevelopmentEncryptionAndSigningCertificate = false;
-            });
-
-            //PreConfigure<OpenIddictServerBuilder>(serverBuilder =>
-            //{
-            //    var certificatePath = Path.Combine(
-            //        hostingEnvironment.ContentRootPath,
-            //        "openiddict.pfx");
-
-            //    if (!File.Exists(certificatePath))
-            //    {
-            //        throw new FileNotFoundException(
-            //            $"OpenIddict certificate not found: {certificatePath}");
-            //    }
-
-            //    var certificatePassword =
-            //        configuration["AuthServer:CertificatePassPhrase"];
-
-            //    if (string.IsNullOrWhiteSpace(certificatePassword))
-            //    {
-            //        throw new InvalidOperationException(
-            //            "AuthServer:CertificatePassPhrase is not configured.");
-            //    }
-
-            //    var certificate = X509CertificateLoader.LoadPkcs12FromFile(
-            //        certificatePath,
-            //        certificatePassword,
-            //        X509KeyStorageFlags.EphemeralKeySet);
-
-            //    serverBuilder.AddEncryptionCertificate(certificate);
-            //    serverBuilder.AddSigningCertificate(certificate);
-
-            //    if (!string.IsNullOrEmpty(configuration["AuthServer:Authority"]))
-            //    {
-            //        serverBuilder.SetIssuer(
-            //            new Uri(configuration["AuthServer:Authority"]!));
-            //    }
-            //});
-        }
+                serverBuilder.SetIssuer(
+                    new Uri(configuration["AuthServer:Authority"]!));
+            }
+        });
     }
 
     public override void ConfigureServices(ServiceConfigurationContext context)
