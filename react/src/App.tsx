@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useAuth } from './context/AuthContext';
 import { Navbar } from './components/Navbar';
 import { LogViewer } from './components/LogViewer';
@@ -10,22 +10,42 @@ import { GuessResultDto } from './types/game';
 
 const SUCCESSFUL_GAME_COUNT_KEY = 'successful_game_count';
 
+const getSuccessfulGameCountKey = (userId: string) =>
+  `${SUCCESSFUL_GAME_COUNT_KEY}:${userId}`;
+
 export const AppContent: React.FC = () => {
-  const { isAuthenticated, isLoading } = useAuth();
+  const { isAuthenticated, isLoading, user } = useAuth();
   const [authMode, setAuthMode] = useState<'login' | 'register'>('login');
   const [isLogsOpen, setIsLogsOpen] = useState(false);
-  const [successfulGameCount, setSuccessfulGameCount] = useState(() => {
-    const storedCount = Number(localStorage.getItem(SUCCESSFUL_GAME_COUNT_KEY));
-    return Number.isFinite(storedCount) && storedCount > 0 ? storedCount : 0;
-  });
+  const [successfulGameCount, setSuccessfulGameCount] = useState(0);
+
+  useEffect(() => {
+    if (!user?.id) {
+      setSuccessfulGameCount(0);
+      return;
+    }
+
+    const storedCount = Number(
+      localStorage.getItem(getSuccessfulGameCountKey(user.id))
+    );
+    setSuccessfulGameCount(
+      Number.isFinite(storedCount) && storedCount >= 0 ? storedCount : 0
+    );
+  }, [user?.id]);
 
   const handleGameResult = (result: GuessResultDto) => {
-    const isWon = result.status === 'Won' || result.status === 1;
-    if (!isWon) return;
+    const isWon = result.isCorrect ||
+      result.status === 'Won' ||
+      result.status === 1 ||
+      result.hint === 'Correct' ||
+      result.hint === 2;
+    if (!isWon || !user?.id) return;
+
+    const userCountKey = getSuccessfulGameCountKey(user.id);
 
     setSuccessfulGameCount(currentCount => {
       const nextCount = currentCount + 1;
-      localStorage.setItem(SUCCESSFUL_GAME_COUNT_KEY, String(nextCount));
+      localStorage.setItem(userCountKey, String(nextCount));
       return nextCount;
     });
   };
