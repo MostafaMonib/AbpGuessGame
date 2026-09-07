@@ -15,6 +15,23 @@ interface AuthContextType {
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+function getUserIdFromToken(token: string): string | null {
+  try {
+    const payload = token.split('.')[1];
+    if (!payload) return null;
+
+    const normalizedPayload = payload.replace(/-/g, '+').replace(/_/g, '/');
+    const paddedPayload = normalizedPayload.padEnd(
+      normalizedPayload.length + ((4 - normalizedPayload.length % 4) % 4),
+      '='
+    );
+    const decodedPayload = JSON.parse(atob(paddedPayload)) as { sub?: string };
+    return decodedPayload.sub || null;
+  } catch {
+    return null;
+  }
+}
+
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [token, setToken] = useState<string | null>(localStorage.getItem('access_token'));
   const [user, setUser] = useState<UserProfile | null>(null);
@@ -31,7 +48,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         GameService.getCurrentUser(),
         GameService.getApplicationConfiguration()
       ]);
-      setUser(profile);
+      setUser({
+        ...profile,
+        id: profile.id || getUserIdFromToken(token) || ''
+      });
     } catch {
       logout();
     } finally {

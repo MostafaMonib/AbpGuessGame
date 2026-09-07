@@ -36,6 +36,16 @@ function getXsrfToken(): string | null {
   return match ? decodeURIComponent(match[2]) : null;
 }
 
+function clearXsrfCookie(name: string) {
+    document.cookie = `${name}=; Max-Age=0; path=/`;
+}
+
+async function refreshAntiForgeryToken() {
+    clearXsrfCookie('XSRF-TOKEN');
+    clearXsrfCookie('RequestVerificationToken');
+    await api.get('/api/abp/application-configuration');
+}
+
 api.interceptors.request.use((config: InternalAxiosRequestConfig) => {
   const correlationId = crypto.randomUUID();
   config.headers.set('X-Correlation-Id', correlationId);
@@ -132,6 +142,7 @@ export const GameService = {
     },
 
     async register(userName: string, emailAddress: string, password: string): Promise<void> {
+        await refreshAntiForgeryToken();
         await api.post('/api/account/register', {
             userName,
             emailAddress,
